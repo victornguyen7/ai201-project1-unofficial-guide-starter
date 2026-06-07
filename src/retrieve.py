@@ -110,7 +110,7 @@ def retrieve(query: str, k: int = TOP_K) -> list[dict]:
                 "text": doc,
                 "source": meta.get("source", "?"),
                 "path": meta.get("path", "?"),
-                "score": 1.0 - dist,  # cosine distance -> similarity
+                "score": dist,  # cosine distance -> similarity
             }
         )
     return results
