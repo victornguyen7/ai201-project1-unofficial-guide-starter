@@ -138,3 +138,19 @@ Tool: Claude. Input: my Retrieval Approach section and Architecture diagram. I w
 
 **Milestone 5 — Generation and interface:**
 Tool: Claude. Input: my Evaluation Plan and the `retrieve()` function from Milestone 4. I will ask it to build a simple loop/CLI that takes a question, retrieves the top 5 chunks, and prompts an LLM Groq to answer using only those chunks (with source attribution). Verify: run my 5 test questions and compare the answers to my expected answers.
+
+---
+
+## Stretch Feature — Chunking Strategy Comparison
+
+<!-- Test 2+ chunking approaches on the same query set and report which performed better and why. -->
+
+Goal: test 2+ chunking approaches on the same query set and report which performed better and why.
+
+**Approach:** `chunk_text()` and `build_chunks()` in `src/ingest.py` are parameterized by `target` / `max_size` / `overlap` (the 600 / 750 / 100 spec stays as the defaults). A new script, `src/compare_chunking.py`, builds chunk sets under three strategies — baseline (600/100, sentence-aware), small (300/50), and large (1000/150) — embeds each with all-MiniLM-L6-v2 into its own ChromaDB collection (in a separate `chroma_db_compare/` store so the app's index is untouched), and runs the 5 evaluation questions against each.
+
+**Metric:** retrieval-level and LLM-free, since chunking controls retrieval and excluding generation removes LLM variance. For each question I map the source file(s) that should contain the answer, then measure **hit@5** (did a top-5 chunk come from a correct source?), **MRR** (rank of the first correct-source chunk), and **avg cosine similarity** of retrieved chunks.
+
+**Output:** the script prints a comparison table and writes `chunking_comparison.md`, which names the winning strategy and explains the precision-vs-context trade-off (small chunks are topically sharper but split a review's details; large chunks keep reviews intact but dilute the embedding's relevance signal).
+
+**Run:** `python src/compare_chunking.py` (no Groq key needed).

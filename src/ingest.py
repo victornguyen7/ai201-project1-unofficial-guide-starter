@@ -119,20 +119,20 @@ def clean_text(text: str) -> str:
 _SENTENCE_END_RE = re.compile(r"[.!?](?=\s|$)")
 
 
-def _next_boundary(text: str, start: int) -> int:
+def _next_boundary(text: str, start: int, target: int, max_size: int) -> int:
     """
     Choose the end index for a chunk beginning at `start`.
 
-    Target TARGET_SIZE chars; if a sentence boundary exists between
-    TARGET_SIZE and MAX_SIZE, end there; otherwise cut at MAX_SIZE (or the
+    Target `target` chars; if a sentence boundary exists between
+    `target` and `max_size`, end there; otherwise cut at `max_size` (or the
     end of the text). Returns an absolute index into `text`.
     """
     n = len(text)
-    if start + TARGET_SIZE >= n:
+    if start + target >= n:
         return n
 
-    window_start = start + TARGET_SIZE
-    window_end = min(start + MAX_SIZE, n)
+    window_start = start + target
+    window_end = min(start + max_size, n)
     window = text[window_start:window_end]
 
     # Prefer the first sentence end inside the [target, max] window.
@@ -151,8 +151,17 @@ def _next_boundary(text: str, start: int) -> int:
     return window_end
 
 
-def chunk_text(text: str) -> list[str]:
-    """Split cleaned text into overlapping chunks per the planning spec."""
+def chunk_text(
+    text: str,
+    target: int = TARGET_SIZE,
+    max_size: int = MAX_SIZE,
+    overlap: int = OVERLAP,
+) -> list[str]:
+    """Split cleaned text into overlapping chunks.
+
+    Defaults match the planning spec (600 target / 750 max / 100 overlap).
+    Pass different values to compare alternative chunking strategies.
+    """
     text = text.strip()
     if not text:
         return []
@@ -161,14 +170,14 @@ def chunk_text(text: str) -> list[str]:
     start = 0
     n = len(text)
     while start < n:
-        end = _next_boundary(text, start)
+        end = _next_boundary(text, start, target, max_size)
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
         if end >= n:
             break
         # Advance with overlap, but always move forward to avoid looping.
-        next_start = end - OVERLAP
+        next_start = end - overlap
         start = next_start if next_start > start else end
     return chunks
 
@@ -186,11 +195,16 @@ class Chunk:
     char_len: int
 
 
-def build_chunks(docs_dir: Path) -> list[Chunk]:
+def build_chunks(
+    docs_dir: Path,
+    target: int = TARGET_SIZE,
+    max_size: int = MAX_SIZE,
+    overlap: int = OVERLAP,
+) -> list[Chunk]:
     chunks: list[Chunk] = []
     for source, path, raw in load_documents(docs_dir):
         cleaned = clean_text(raw)
-        for i, piece in enumerate(chunk_text(cleaned)):
+        for i, piece in enumerate(chunk_text(cleaned, target, max_size, overlap)):
             chunks.append(
                 Chunk(
                     id=f"{source}-{i}",
